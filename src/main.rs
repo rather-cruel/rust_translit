@@ -1,13 +1,34 @@
+use std::io::{prelude::*, BufReader};
 use std::collections::HashMap;
+use std::fs::File;
 use std::io;
+use std::ops::Add;
 
 fn main() {
-    let mut user_input = String::new();
-    io::stdin().read_line(&mut user_input).unwrap();
-    println!("Output: {}", convert(&user_input));
+    read_lines("info.txt").expect("panic message");
+
+    // let mut user_input = String::new();
+    // io::stdin().read_line(&mut user_input).unwrap();
+    // println!("Output: {}", convert(&user_input));
 }
 
-fn convert(input: &String) -> String {
+fn read_lines(args: &str) -> io::Result<()> {
+    let file = File::open(args)?;
+    let reader = BufReader::new(file);
+    let mut string: String = String::new();
+
+    for line in reader.lines() {
+        string.push_str(convert(line.unwrap().to_string()).as_str());
+        string.push_str("\n");
+    }
+
+    let mut create_file = File::create(args.to_string().add("_converted.txt"))?;
+    create_file.write_all(string.as_ref())?;
+
+    Ok(())
+}
+
+fn convert(input: String) -> String {
     let mut letters_map = HashMap::new();
     letters_map.insert("'", "");
     letters_map.insert("а", "a");
@@ -44,6 +65,16 @@ fn convert(input: &String) -> String {
     letters_map.insert("ю", "ju");
     letters_map.insert("я", "ja");
 
+    let mut soft_letters = HashMap::new();
+    soft_letters.insert("д", "ď");
+    soft_letters.insert("з", "ź");
+    soft_letters.insert("л", "l");
+    soft_letters.insert("н", "ń");
+    soft_letters.insert("р", "ŕ");
+    soft_letters.insert("с", "ś");
+    soft_letters.insert("ц", "ć");
+    soft_letters.insert("т", "ť");
+
     let mut vec: Vec<char> = Vec::new();
     let string: &str = input.as_str();
     let mut output: String = String::new();
@@ -62,9 +93,10 @@ fn convert(input: &String) -> String {
     // Here we go
     for index in 0..vec.len() {
         let current_char = vec.get(index).unwrap();
+        let lowered = current_char.to_string().to_lowercase();
         let mut next_letter = String::new();
         let mut next_letter_bool: bool = false;
-        let lowered = current_char.to_string().to_lowercase();
+        let mut is_soft: bool = false;
 
         if (index + 1) != vec.len() {
             let letter = &vec.get(index + 1).unwrap().clone();
@@ -80,9 +112,14 @@ fn convert(input: &String) -> String {
                 latin = vowels_map.get(lowered.as_str()).unwrap()
             }
 
+            if next_letter == "ь" && soft_letters.contains_key(lowered.as_str()) {
+                latin = soft_letters.get(lowered.as_str()).unwrap();
+                is_soft = true;
+            }
+
             // Change letter's case algorithm
             if is_upper {
-                if latin.len() > 1 {
+                if latin.len() > 1 && !is_soft {
                     if next_letter_bool || !(letters_map.contains_key(next_letter.as_str())) {
                         output.push_str(latin.to_uppercase().as_str())
                     } else if !(next_letter_bool) || (next_letter != " ") {
